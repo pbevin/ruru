@@ -2,7 +2,9 @@ $LOAD_PATH << File.join(File.dirname(__FILE__),"..","interp")
 
 require 'ruru'
 
-describe "Cross Product calculator" do
+# We describe a small piece of sample code that motivates writing the interpreter.
+# The code simply calculates the scalar product of two vectors using a while loop.
+describe "Scalar Product calculator example code" do
   attr_reader :r
 
   before(:each) do
@@ -19,6 +21,7 @@ describe "Cross Product calculator" do
     @r = ruru(prog)
   end
 
+  # Translation layer between Ruby code and low-level objects.
   def xprod(a, b)
     a = a.map{ |x| RuFixnum.new(x) }
     b = b.map{ |x| RuFixnum.new(x) }

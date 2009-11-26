@@ -2,6 +2,7 @@ require 'rubygems'
 require 'ruby_parser'
 require 'pp'
 
+# Support inline assertions.
 class AssertionFailure < StandardError
 end
 
@@ -11,37 +12,15 @@ class Object
   end
 end
 
-
-# s(:defn,
-#  :xprod,
-#  s(:args, :a, :b),
-#  s(:scope,
-#   s(:block,
-#    s(:masgn,
-#     s(:array, s(:lasgn, :i), s(:lasgn, :prod)),
-#     s(:array, s(:lit, 0), s(:lit, 0))),
-#    s(:while,
-#     s(:call,
-#      s(:lvar, :i),
-#      :<,
-#      s(:arglist, s(:call, s(:lvar, :a), :size, s(:arglist)))),
-#     s(:block,
-#      s(:lasgn,
-#       :prod,
-#       s(:call,
-#        s(:lvar, :prod),
-#        :+,
-#        s(:arglist,
-#         s(:call,
-#          s(:call, s(:lvar, :a), :[], s(:arglist, s(:lvar, :i))),
-#          :+,
-#          s(:arglist,
-#           s(:call, s(:lvar, :b), :[], s(:arglist, s(:lvar, :i)))))))),
-#      s(:lasgn, :i, s(:call, s(:lvar, :i), :+, s(:arglist, s(:lit, 1))))),
-#     true),
-#    s(:return, s(:lvar, :prod)))))
+# Ruru object class
+class RuObj
+end
 
 class Ruru
+  Qnil = RuObj.new
+  Qtrue = RuObj.new
+  Qfalse = RuObj.new
+
   attr_reader :context
 
   def initialize(code, context)
@@ -54,6 +33,7 @@ class Ruru
     end
   end
 
+  # Evaluate a sexp by finding the top-level form and proceeding down the tree.
   def eval(sexp = @parsed)
     type, *args = sexp
     case type
@@ -86,7 +66,7 @@ class Ruru
       while eval(cond)
         eval(body)
       end
-      99
+      Qnil
     when :call
       lhs, method, arglist = args
       apply(lhs, method, arglist.drop(1))
@@ -97,6 +77,7 @@ class Ruru
     end
   end
 
+  # 
   def apply(obj, method, args)
     obj = eval(obj)
     args = args.map { |x| eval(x) }
