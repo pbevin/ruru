@@ -40,3 +40,47 @@ describe "Scalar Product calculator example code" do
     lambda { xprod([1], []) }.should raise_error("Array bounds")
   end
 end
+
+describe "Simple classes" do
+  attr_reader :r
+
+  before(:each) do
+    prog = <<-END
+      class Person
+        def initialize(name, rank)
+          @name = name
+          @rank = rank
+        end
+        
+        def name
+          @name
+        end
+      end
+    END
+    @r = ruru(prog)
+  end
+
+  def new_person(name, rank)
+    r.new_object("Person", name, rank)
+  end
+
+  def person_name(person)
+    r.instance_eval(person, "self.name")
+  end
+
+  it "can create a new person" do
+    p = new_person("Baldrick", "Private")
+  end
+
+  it "can remember a person's name" do
+    p = new_person("Melchett", "General")
+    person_name(p).should == "Melchett"
+  end
+
+  it "can distinguish two objects" do
+    p1 = new_person("Blackadder", "Captain")
+    p2 = new_person("George", "Lieutenant")
+    person_name(p1).should == "Blackadder"
+    person_name(p2).should == "George"
+  end
+end
