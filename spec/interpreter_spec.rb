@@ -82,3 +82,60 @@ describe "Simple classes" do
     person_name("g").should == "George"
   end
 end
+
+describe "A subclass" do
+  attr_reader :r
+
+  before(:each) do
+    prog = <<-END
+      class Person
+        def initialize(name, rank)
+          @name = name
+          @rank = rank
+        end
+        
+        def name
+          @name
+        end
+      end
+      
+      class SalariedPerson < Person
+        def initialize(name, rank, salary)
+          super(name, rank)
+          @salary = salary
+        end
+        
+        def salary
+          @salary
+        end
+      end
+    END
+    @r = ruru(prog)
+  end
+
+  def new_person(var, *args)
+    r.run("@#{var} = SalariedPerson.new(#{args.map(&:inspect).join(", ")})")
+  end
+
+  def person_name(var)
+    r.run("@#{var}.name")
+  end
+  
+  def person_salary(var)
+    r.run("@#{var}.salary")
+  end
+
+  it "can be created" do
+    new_person("k", "Kevin", "Janitor", "200")
+  end
+  
+  it "responds to its own methods" do
+    new_person("k", "Kevin", "Janitor", "200")
+    person_salary("k").should == "200"
+  end
+
+  it "responds to its base class's methods" do
+    new_person("k", "Kevin", "Janitor", "200")
+    person_name("k").should == "Kevin"
+  end
+end

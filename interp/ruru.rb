@@ -37,7 +37,8 @@ class Ruru
       eval(args[0])
     when :class
       name, parent_name, body = args
-      open_class(name, parent_name, body)
+      parent = parent_name ? eval(parent_name) : nil
+      open_class(name, parent, body)
     when :block
       v = nil
       args.each do |stmt|
@@ -78,17 +79,21 @@ class Ruru
       RuArray.new(arr)
     when :return
       eval(args[0])
+    when :super
+      arglist = args.map { |a| eval(a) }
+      call(recv, context.current_method, arglist, context.current_class.parent)
     else
       raise "eval: Unrecognized sexp #{sexp.inspect}"
     end
   end
 
-  def call(new_recv, method_name, args)
+  def call(new_recv, method_name, args, cls = nil)
     if (!new_recv)
       new_recv = @recv
     end
 
-    method = new_recv.find_method(method_name)
+    cls = new_recv.eigenclass_or_class if !cls
+    method = cls.find_method_cls(method_name)
 
     if method
       old_recv = @recv
@@ -98,8 +103,12 @@ class Ruru
       method.args.zip(args).each do |name, value|
         context.set_variable(name, value)
       end
+      context.current_method = method_name
+      context.current_class = cls
       v = eval(method.body)
       @recv = old_recv
+      context.current_class = nil
+      context.current_method = nil
       v
     elsif new_recv.ru_class == RuClass.instance(:class) && method_name == :new
       obj = RuObject.new(new_recv)
@@ -159,8 +168,12 @@ class RuObject
   end
 
   def find_method(name)
-    raise "Object #{self.inspect} has no eigenclass and no class" if !@eigenclass && !@ru_class
-    (@eigenclass || @ru_class).find_method_cls(name)
+    raise "Object #{self.inspect} has no eigenclass and no class" if !eigenclass_or_class
+    eigenclass_or_class.find_method_cls(name)
+  end
+
+  def eigenclass_or_class
+    (@eigenclass || @ru_class)
   end
 
   def set_constant(name, value)
@@ -239,6 +252,7 @@ class RuClass < RuObject
 end
 
 class RuContext
+  attr_accessor :current_class, :current_method
   def initialize
     @vars = {}
   end
