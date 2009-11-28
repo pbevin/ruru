@@ -11,7 +11,7 @@ class Ruru
 
   def initialize
     @recv = @main = RuObject.new(nil)
-    @recv.set_constant(:main, "xx")
+    @recv.set_constant(:main, "main")
     @recv.ru_class = @obj_class
     @context = RuContext.new
   end
@@ -107,34 +107,17 @@ class Ruru
       obj = RuObject.new(new_recv)
       call(obj, :initialize, args)
       obj
-    elsif new_recv.ru_class == RuClass.instance(:array)
-      case method_name
-      when :size
-        new_recv.size
-      when :[]
-        new_recv[args[0]]
-      else
-        raise "No method #{method_name.inspect} in Array"
-      end
-    elsif new_recv.ru_class == RuClass.instance(:fixnum)
-      case method_name
-      when :<
-        new_recv.val < args[0].val
-      when :*
-        RuFixnum.new(new_recv.val * args[0].val)
-      when :+
-        RuFixnum.new(new_recv.val + args[0].val)
-      else
-        raise "No method #{method_name.inspect} in Fixnum"
-      end
     else
-      raise "No method #{method_name.inspect} defined on #{new_recv.inspect}, #{@main.inspect}, #{@prog}"
+      begin
+        new_recv.send(method_name, *args)
+      rescue NoMethodError
+        raise "No method #{method_name.inspect} in #{new_recv.inspect}"
+      end
     end
   end
 
   def create_class(class_name, parent)
     parent ||= recv.get_constant(:Object)
-    # puts "Creating class #{class_name} with parent #{parent}"
     if class_obj = recv.get_constant(class_name)
       return class_obj
     end
@@ -192,11 +175,9 @@ class RuObject
 
   def set_instance_variable(name, value)
     @ivars[name] = value
-    # p "isetvar n=#{name} v=#{value.inspect} me=#{self.inspect}"
   end
 
   def get_instance_variable(name)
-    # p "ivar #{name} #{self.inspect}"
     @ivars[name]
   end
 end
@@ -210,9 +191,6 @@ class RuClass < RuObject
     @methods = {}
   end
 
-  # @@cls_cls = RuClass.new
-  # @@obj_cls = RuObject.new(@@cls_cls)
-  # @@cls_cls.ru_class = @@cls_cls
   @@obj_cls = RuClass.new("Object")
   @@cls_cls = RuClass.new("Class")
   @@mod_cls = RuClass.new("Module")
@@ -288,9 +266,11 @@ class RuArray < RuObject
     @arr = arr
     super(RuClass.instance(:array))
   end
+
   def size
     RuFixnum.new(@arr.size)
   end
+
   def [](idx)
     i = idx.val
     if i < 0 || i >= @arr.size
@@ -305,5 +285,17 @@ class RuFixnum < RuObject
   def initialize(val)
     @val = val
     super(RuClass.instance(:fixnum))
+  end
+
+  def <(other)
+    val < other.val
+  end
+
+  def +(other)
+    RuFixnum.new(val + other.val)
+  end
+
+  def *(other)
+    RuFixnum.new(val * other.val)
   end
 end
