@@ -17,9 +17,7 @@ class Ruru
   end
 
   def run(prog)
-    if String === prog
-      prog = RubyParser.new.parse(prog)
-    end
+    prog = RubyParser.new.parse(prog)
     @prog = prog
     eval(prog)
   end
@@ -161,7 +159,7 @@ class RuObject
   end
 
   def find_method(name)
-    raise "oops #{name}" if !@eigenclass && !@ru_class
+    raise "Object #{self.inspect} has no eigenclass and no class" if !@eigenclass && !@ru_class
     (@eigenclass || @ru_class).find_method_cls(name)
   end
 
@@ -185,23 +183,28 @@ end
 
 class RuClass < RuObject
   attr_reader :parent
+  attr_accessor :name
 
   def parent=(parent)
     @parent = parent
     @methods = {}
   end
 
-  @@obj_cls = RuClass.new("Object")
-  @@cls_cls = RuClass.new("Class")
-  @@mod_cls = RuClass.new("Module")
-  @@arr_cls = RuClass.new("Array")
-  @@fix_cls = RuClass.new("Fixnum")
-  [@@obj_cls, @@cls_cls, @@mod_cls, @@arr_cls, @@fix_cls].each { |c| c.ru_class = @cls_cls }
-  @@obj_cls.parent = nil
-  @@mod_cls.parent = @@obj_cls
+  @@cls_cls = RuClass.new
+  @@cls_cls.ru_class = @@cls_cls
+
+  def initialize(name, parent = nil)
+    super(@@cls_cls)
+    @name = name
+    self.parent = parent
+  end
+
+  @@obj_cls = RuClass.new("Object", nil)
+  @@mod_cls = RuClass.new("Module", @@obj_cls)
+  @@arr_cls = RuClass.new("Array", @@obj_cls)
+  @@fix_cls = RuClass.new("Fixnum", @@obj_cls)
+
   @@cls_cls.parent = @@mod_cls
-  @@arr_cls.parent = @@obj_cls
-  @@fix_cls.parent = @@obj_cls
 
   @@classes = {
     :object => @@obj_cls,
@@ -211,24 +214,12 @@ class RuClass < RuObject
     :fixnum => @@fix_cls
   }
 
-  def initialize(name, parent = nil)
-    super(@@cls_cls)
-    @name = name
-    self.parent = parent
-  end
-
   def self.instance(type = :class)
     @@classes[type]
   end
 
   def define_method(method)
     @methods[method.name] = method
-  end
-
-  def native(methods = {})
-    methods.each do |name, impl|
-      define_method(NativeMethod.new(name, impl))
-    end
   end
 
   def find_method_cls(name)
