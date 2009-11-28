@@ -23,9 +23,7 @@ describe "Scalar Product calculator example code" do
 
   # Translation layer between Ruby code and low-level objects.
   def xprod(a, b)
-    a = a.map{ |x| RuFixnum.new(x) }
-    b = b.map{ |x| RuFixnum.new(x) }
-    r.call(:xprod, RuArray.new(a), RuArray.new(b)).__val
+    r.run("xprod(#{a.inspect}, #{b.inspect})").val
   end
 
   it "evaluates to 0 when the arrays are empty" do
@@ -60,27 +58,27 @@ describe "Simple classes" do
     @r = ruru(prog)
   end
 
-  def new_person(name, rank)
-    r.new_object("Person", name, rank)
+  def new_person(var, name, rank)
+    r.run("@#{var} = Person.new(#{name.inspect}, #{rank.inspect})")
   end
 
-  def person_name(person)
-    r.instance_eval(person, "self.name")
+  def person_name(var)
+    r.run("@#{var}.name")
   end
 
   it "can create a new person" do
-    p = new_person("Baldrick", "Private")
+    p = new_person("b", "Baldrick", "Private")
   end
 
   it "can remember a person's name" do
-    p = new_person("Melchett", "General")
-    person_name(p).should == "Melchett"
+    p = new_person("m", "Melchett", "General")
+    person_name("m").should == "Melchett"
   end
 
   it "can distinguish two objects" do
-    p1 = new_person("Blackadder", "Captain")
-    p2 = new_person("George", "Lieutenant")
-    person_name(p1).should == "Blackadder"
-    person_name(p2).should == "George"
+    p1 = new_person("b", "Blackadder", "Captain")
+    p2 = new_person("g", "George", "Lieutenant")
+    person_name("b").should == "Blackadder"
+    person_name("g").should == "George"
   end
 end
