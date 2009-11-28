@@ -2,9 +2,6 @@ require 'rubygems'
 require 'ruby_parser'
 require 'pp'
 
-class RuObject; end
-class RuContext; end
-
 class Ruru
   attr_accessor :recv
   attr_accessor :context
@@ -128,7 +125,7 @@ class Ruru
     if class_obj = recv.get_constant(class_name)
       return class_obj
     end
-    class_obj = RuClass.new(class_name, parent) ### parent is str, not RuClass
+    class_obj = RuClass.new(class_name, parent)
     recv.set_constant(class_name, class_obj)
     class_obj
   end
