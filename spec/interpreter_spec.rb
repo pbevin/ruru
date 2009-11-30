@@ -120,7 +120,7 @@ describe "A subclass" do
   def person_name(var)
     r.run("@#{var}.name")
   end
-  
+
   def person_salary(var)
     r.run("@#{var}.salary")
   end
@@ -128,7 +128,7 @@ describe "A subclass" do
   it "can be created" do
     new_person("k", "Kevin", "Janitor", "200")
   end
-  
+
   it "responds to its own methods" do
     new_person("k", "Kevin", "Janitor", "200")
     person_salary("k").should == "200"
@@ -137,5 +137,15 @@ describe "A subclass" do
   it "responds to its base class's methods" do
     new_person("k", "Kevin", "Janitor", "200")
     person_name("k").should == "Kevin"
+  end
+end
+
+describe "Prime generator" do
+  it "generates primes up to 100" do
+    pending("enumerable support") do
+      prog = "2.upto(30).inject([]){|a,n|a.any?{|i|n%i==0}?a:a<<n}"
+      # pp RubyParser.new.parse(prog)
+      ruru(prog).inspect.should == "[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]"
+    end
   end
 end
