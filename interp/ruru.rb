@@ -1,25 +1,23 @@
 require 'rubygems'
 require 'ruby_parser'
 require 'pp'
+require 'patch'
 
 class Ruru
-  attr_accessor :recv
   attr_accessor :context
 
   def initialize
-    @recv = @main = RuObject.new(nil)
-    @recv.set_constant(:main, "main")
-    @recv.ru_class = @obj_class
+    @main = RuObject.new(RuClass.instance(:object))
     @context = RuContext.new
   end
 
   def run(prog)
     prog = RubyParser.new.parse(prog)
     @prog = prog
-    eval(prog)
+    eval(@main, prog)
   end
 
-  def eval(sexp)
+  def eval(recv, sexp)
     type, *args = sexp
     case type
     when :defn
@@ -28,23 +26,24 @@ class Ruru
       recv.define_method(RuMethod.new(name, arglist, body))
     when :call
       new_recv, method_name, arglist = args
-      new_recv = eval(new_recv) if new_recv
-      call(new_recv, method_name, arglist.drop(1).map { |a| eval(a) })
+      new_recv = new_recv ? eval(recv, new_recv) : @main
+      evaluated_args = arglist.drop(1).map { |a| eval(recv, a) }
+      call(new_recv, method_name, evaluated_args)
     when :scope
-      eval(args[0])
+      eval(recv, args[0])
     when :class
       name, parent_name, body = args
-      parent = parent_name ? eval(parent_name) : nil
+      parent = parent_name ? eval(recv, parent_name) : nil
       open_class(name, parent, body)
     when :block
       v = nil
       args.each do |stmt|
-        v = eval(stmt)
+        v = eval(recv, stmt)
       end
       v
     when :lasgn
       var, value = args
-      value = eval(value)
+      value = eval(recv, value)
       context.set_variable(var, value)
     when :const
       recv.get_constant(args[0])
@@ -52,15 +51,15 @@ class Ruru
       lhs, rhs = args
       lhs = lhs.drop(1)
       rhs = rhs.drop(1)
-      lhs.zip(rhs).each { |l,r| context.set_variable(l[1], eval(r)) }
+      lhs.zip(rhs).each { |l,r| context.set_variable(l[1], eval(recv, r)) }
     when :lit
       RuFixnum.new(args[0])
     when :str
       args[0]  ###
     when :while
       cond, body = args
-      while eval(cond)
-        eval(body)
+      while eval(recv, cond)
+        eval(recv, body)
       end
       nil
     when :lvar
@@ -68,16 +67,16 @@ class Ruru
       context.get_variable(var)
     when :iasgn
       var, value = args
-      recv.set_instance_variable(var, eval(value))
+      recv.set_instance_variable(var, eval(recv, value))
     when :ivar
       recv.get_instance_variable(args[0])
     when :array
-      arr = args.map { |a| eval(a) }
+      arr = args.map { |a| eval(recv, a) }
       RuArray.new(arr)
     when :return
-      eval(args[0])
+      eval(recv, args[0])
     when :super
-      arglist = args.map { |a| eval(a) }
+      arglist = args.map { |a| eval(recv, a) }
       call(recv, context.current_method, arglist, context.current_class.parent)
     else
       raise "eval: Unrecognized sexp #{sexp.inspect}"
@@ -85,25 +84,19 @@ class Ruru
   end
 
   def call(new_recv, method_name, args, cls = nil)
-    if (!new_recv)
-      new_recv = @recv
-    end
+    assert new_recv, "No receiver for #{method_name.inspect}"
 
     cls = new_recv.eigenclass_or_class if !cls
     method = cls.find_method_cls(method_name)
 
     if method
-      old_recv = @recv
-      @recv = new_recv
-
       ## XXX: scope push
       method.args.zip(args).each do |name, value|
         context.set_variable(name, value)
       end
       context.current_method = method_name
       context.current_class = cls
-      v = eval(method.body)
-      @recv = old_recv
+      v = eval(new_recv, method.body)
       context.current_class = nil
       context.current_method = nil
       v
@@ -121,21 +114,18 @@ class Ruru
   end
 
   def create_class(class_name, parent)
-    parent ||= recv.get_constant(:Object)
-    if class_obj = recv.get_constant(class_name)
+    parent ||= @main.get_constant(:Object)
+    if class_obj = @main.get_constant(class_name)
       return class_obj
     end
     class_obj = RuClass.new(class_name, parent)
-    recv.set_constant(class_name, class_obj)
+    @main.set_constant(class_name, class_obj)
     class_obj
   end
 
   def open_class(class_name, parent, body)
     class_obj = create_class(class_name, parent)
-    old_recv = recv
-    @recv = class_obj
-    v = eval(body)
-    @recv = old_recv
+    v = eval(class_obj, body)
     v
   end
 end
